@@ -227,4 +227,23 @@ subplot(2,1,2)
 plot(f, fftshift(abs(fft_yt)))
 
 
+%% Part 2
 
+clear
+close all
+
+N_e = 10;
+
+w_c_e = 0.44 * pi;
+w_bandwidth_e = 0.08 * pi;
+
+Rp_e = 1;
+Rs_e = 50;
+Wp_e = [w_c_e - w_bandwidth_e/2, w_c_e + w_bandwidth_e/2];
+
+[b_e, a_e] = ellip(N_e, Rp_e, Rs_e, Wp_e/pi, 'stop');
+freqz(b_e, a_e)
+
+n = 0:200;
+x_n_e = sin(0.44 * pi * n);
+y_n_e = filter(b_e, a_e, x_n_e);
