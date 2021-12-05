@@ -149,35 +149,52 @@ close all
 
 % Design the filter
 
-f_s_band = 1000; % [Hz]
-Wp_band = [125 175]/f_s_band; % [rad/sample]
-Ws_band = [115 185]/f_s_band; % [rad/sample]
+clear
+close all
+
+Wp_band = [125 175]; % [Hz]
+Ws_band = [115 185]; % [Hz]
 Rp_band = 1; % [dB]
 Rs_band = 40; % [dB]
 
-w = linspace(0,1,1000);
+[N_cheb1, Wn_cheb1] = cheb1ord(Wp_band, Ws_band, Rp_band, Rs_band, 's');
+f_s_band = 1000; % [Hz]
 
-[N_band, Wn_band] = buttord(Wp_band, Ws_band, Rp_band, Rs_band, 's');
-[z_band, p_band, k_band] = butter(N_band, Wn_band,'s');
+% [z,p,k] = ellip(N,1,25,2*pi*Wp_band,'s');
+[z,p,k] = cheby1(N_cheb1,1,2*pi*Wn_cheb1,'bandpass','s');
+% [z,p,k] = ellip(N,1,25,Wp_band/750, 's')
 
-[b_band, a_band] = zp2tf(z_band, p_band, k_band);
-H_band = freqs(b_band, a_band, w);
+[num,den] = zp2tf(z,p,k);
+[h,w] = freqs(num,den);
 
-[bd_band, ad_band] = impinvar(b_band, a_band, f_s_band);
+figure
+plot(w/(2*pi), mag2db(abs(h)))
+hold on
+xlim([0 500])
+grid
+legend('Magnitude response')
+xlabel('Frequency (Hz)')
+ylabel('Magnitude (dB)')
 
-Hd_band = freqz(bd_band, ad_band, w);
+[numd,dend] = bilinear(num,den,f_s_band,150);
+
+figure
+fvtool(numd,dend,'Fs',f_s_band)
 
 figure
 subplot(2,1,1)
-plot(w, mag2db(abs(H_band)))
+plot(w/(2*pi), mag2db(abs(h)))
 title('The frequency response of the bandpass filter')
 hold on
 grid on
 xlabel('f [Hz]')
 ylabel('FFT\{h(n)\} [dB]')
 
+[hd, w] = freqz(numd, dend)
+
 subplot(2,1,2)
-plot(w, mag2db(abs(Hd_band)))
+plot(h)
+plot(w, mag2db(abs(hd)))
 title('The frequency response of the bandpass filter')
 hold on
 grid on
@@ -191,14 +208,23 @@ samples = 300;
 t = linspace(0,samples*T_s_band, samples+1);
 x_t = 5*sin(200*pi*t)+2*cos(300*pi*t);
 
-y_t = filter(b_band, a_band, x_t);
+y_t = filter(numd, dend, x_t);
+
+L = 1000;
+fft_xt = fft(x_t, L);
+% fft_xt = fft_xt(1:L/2);
+
+fft_yt = fft(y_t, L);
+% fft_yt = fft_yt(1:L/2);
+
+f = linspace(-f_s_band,f_s_band,L);
 
 figure
 subplot(2,1,1)
-plot(t, x_t)
+plot(f, fftshift(abs(fft_xt)))
 
 subplot(2,1,2)
-plot(t, y_t)
+plot(f, fftshift(abs(fft_yt)))
 
 
 
