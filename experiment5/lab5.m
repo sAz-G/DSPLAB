@@ -53,24 +53,24 @@ plot(w, mag2db(abs(H_butter)))
 title('The frequency response of the analog Butterworth filter')
 hold on
 grid on
-xlabel('\omega/\pi [rad/sample]')
-ylabel('FFT\{h(n)\} [dB]')
+xlabel('f/f_s')
+ylabel('FFT\{h(t)\} [dB]')
 
 subplot(3,1,2)
 plot(w, mag2db(abs(H_cheb1)));
 title('The frequency response of the analog Chebyshev Type I filter')
 hold on
 grid on
-xlabel('\omega/\pi [rad/sample]')
-ylabel('FFT\{h(n)\} [dB]')
+xlabel('f/f_s')
+ylabel('FFT\{h(t)\} [dB]')
 
 subplot(3,1,3)
-plot(w, mag2db(abs(H_ellip)))
-title('The frequency response of the analog Epilleptic filter')
+plot(w*f_s, mag2db(abs(H_ellip)))
+title('The frequency response of the analog Elliptic filter')
 hold on
 grid on
-xlabel('\omega/\pi [rad/sample]')
-ylabel('FFT\{h(n)\} [dB]')
+xlabel('f/f_s')
+ylabel('FFT\{h(t)\} [dB]')
 
 saveas(gcf,'figures/analog_frequency_response.png')
 
@@ -89,6 +89,8 @@ grid on
 title('The impulse response of the analog Butterworth filter')
 xlabel('t [s]')
 ylabel('h(t)')
+xlim([0 400])
+ylim([-0.04 0.06])
 
 subplot(3,1,2)
 plot(t_cheb1, imp_cheb1)
@@ -97,6 +99,8 @@ grid on
 title('The impulse response of the analog Chebyshev type I filter')
 xlabel('t [s]')
 ylabel('h(t)')
+xlim([0 400])
+ylim([-0.04 0.06])
 
 subplot(3,1,3)
 plot(t_ellip, imp_ellip)
@@ -105,6 +109,8 @@ grid on
 title('The impulse response of the analog Elliptic filter')
 xlabel('t [s]')
 ylabel('h(t)')
+xlim([0 400])
+ylim([-0.04 0.06])
 
 saveas(gcf,'figures/analog_impulse_response.png')
 
@@ -124,7 +130,7 @@ saveas(gcf,'figures/cheb1_zero_pole.png')
 
 figure
 zplane(b_ellip, a_ellip)
-title('Pole-Zero plot of the Epilleptic filter')
+title('Pole-Zero plot of the Elliptic filter')
 grid on
 saveas(gcf,'figures/ellip_zero_pole.png')
 
@@ -134,10 +140,14 @@ saveas(gcf,'figures/ellip_zero_pole.png')
 dev = [(10^(Rp/20)-1)/(10^(Rp/20)+1) 10^(-Rs/20)];
 [n,fo,ao,w] = firpmord([Wp*f_s Ws*f_s], [1 0], dev, f_s);
 b = firpm(n,fo,ao,w);
+[H, w] = freqz(b,1,1024,f_s);
 
 figure
-freqz(b,1)
+plot(w, mag2db(abs(H)))
 title('Lowpass Filter Designed to Specifications')
+grid on
+xlabel('f [Hz]')
+ylabel('FFT\{h(n)\} [dB]')
 saveas(gcf,'figures/optimum_FIR.png')
 
 %% Problem 5.3: IIR Filtering of Sinusoids
@@ -160,9 +170,7 @@ Rs_band = 40; % [dB]
 [N_cheb1, Wn_cheb1] = cheb1ord(Wp_band, Ws_band, Rp_band, Rs_band, 's');
 f_s_band = 1000; % [Hz]
 
-% [z,p,k] = ellip(N,1,25,2*pi*Wp_band,'s');
 [z,p,k] = cheby1(N_cheb1,1,2*pi*Wn_cheb1,'bandpass','s');
-% [z,p,k] = ellip(N,1,25,Wp_band/750, 's')
 
 [num,den] = zp2tf(z,p,k);
 [h,w] = freqs(num,den);
@@ -178,28 +186,29 @@ ylabel('Magnitude (dB)')
 
 [numd,dend] = bilinear(num,den,f_s_band,150);
 
-figure
 fvtool(numd,dend,'Fs',f_s_band)
 
 figure
 subplot(2,1,1)
 plot(w/(2*pi), mag2db(abs(h)))
-title('The frequency response of the bandpass filter')
+title('The frequency response of the analog bandpass filter')
+xlim([1 500])
 hold on
 grid on
 xlabel('f [Hz]')
-ylabel('FFT\{h(n)\} [dB]')
+ylabel('FFT\{h(t)\} [dB]')
 
-[hd, w] = freqz(numd, dend)
+[hd, wd] = freqz(numd, dend);
 
 subplot(2,1,2)
-plot(h)
-plot(w, mag2db(abs(hd)))
-title('The frequency response of the bandpass filter')
+plot(wd, mag2db(abs(hd)))
+title('The frequency response of the digital bandpass filter')
 hold on
 grid on
-xlabel('f [Hz]')
+xlabel('\omega [rad/sample]')
 ylabel('FFT\{h(n)\} [dB]')
+
+saveas(gcf,'figures/FIR_bandpasss.png')
 
 
 %%% Filter the sequence
@@ -222,14 +231,23 @@ f = linspace(-f_s_band,f_s_band,L);
 figure
 subplot(2,1,1)
 plot(f, fftshift(abs(fft_xt)))
+xlabel("f [Hz]")
+ylabel('FFT\{x(t)\}')
+title("Fourier transform of the signal")
+legend("FFT of x(t)")
+grid on
 
 subplot(2,1,2)
 plot(f, fftshift(abs(fft_yt)))
+xlabel("f [Hz]")
+ylabel('FFT\{y(t)\}')
+title("Fourier transform of the filtered signal")
+legend("FFT of y(t)")
+grid on
 
+saveas(gcf,'figures/FFT_signal_bandpass.png')
 
 %% Part 2
-
-clear
 close all
 
 N_e = 10;
@@ -238,12 +256,66 @@ w_c_e = 0.44 * pi;
 w_bandwidth_e = 0.08 * pi;
 
 Rp_e = 1;
-Rs_e = 50;
+Rs_e = 100;
 Wp_e = [w_c_e - w_bandwidth_e/2, w_c_e + w_bandwidth_e/2];
 
 [b_e, a_e] = ellip(N_e, Rp_e, Rs_e, Wp_e/pi, 'stop');
-freqz(b_e, a_e)
+[h_e, w_e] = freqz(b_e, a_e, 1024);
+
+figure
+plot(w_e/pi, mag2db(abs(h_e)))
+title('The frequency response of the digital elliptic bandsop filter')
+hold on
+grid on
+xlabel('\omega/\pi [rad/sample]')
+ylabel('FFT\{h(n)\} [dB]')
+
+saveas(gcf,'figures/FIR_bandstop.png')
 
 n = 0:200;
 x_n_e = sin(0.44 * pi * n);
 y_n_e = filter(b_e, a_e, x_n_e);
+
+L = 1000;
+f = linspace(-1,1,L);
+
+figure
+subplot(2,1,1)
+plot(f, fftshift(abs(fft(x_n_e, L))))
+xlabel('\omega/\pi [rad/sample]')
+ylabel('FFT\{x(n)\}')
+title("Fourier transform of the signal")
+legend("FFT of x(n)")
+grid on
+
+subplot(2,1,2)
+plot(f, fftshift(abs(fft(y_n_e, L))))
+xlabel('\omega/\pi [rad/sample]')
+ylabel('FFT\{y(n)\}')
+title("Fourier transform of the filtered signal")
+legend("FFT of y(n)")
+grid on
+
+saveas(gcf,'figures/FFT_signal_bandstop.png')
+
+figure
+subplot(2,1,1)
+plot(x_n_e)
+xlabel("n")
+ylabel('x(n)')
+title("Sample sequence in the time-domain")
+legend("x(n)")
+ylim([-1 1])
+grid on
+
+subplot(2,1,2)
+plot(y_n_e)
+xlabel("n")
+ylabel('y(n)')
+title("Filtered signal in the time-domain")
+ylim([-1 1])
+legend("y(n)")
+grid on
+
+saveas(gcf,'figures/signal_bandstop.png')
+
